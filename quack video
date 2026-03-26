@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quack - Share Your Bill</title>
+    <style>
+        /* --- 1. DESIGN & STYLE (CSS) --- */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; background-color: #f9f9f9; color: #333; overflow-x: hidden;
+        }
+
+        header { 
+            background: #fff; padding: 10px 20px; display: flex; 
+            justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100;
+        }
+
+        .logo { 
+            font-size: 24px; font-weight: bold; color: #ffcc00; 
+            text-decoration: none; display: flex; align-items: center; gap: 5px;
+        }
+
+        .search-bar { 
+            width: 40%; padding: 10px 15px; border: 1px solid #ccc; 
+            border-radius: 20px; outline: none; font-size: 16px;
+        }
+
+        .main-container { display: flex; }
+
+        .sidebar { 
+            width: 200px; height: calc(100vh - 60px); background: #fff; 
+            padding: 20px; border-right: 1px solid #ddd; position: sticky; top: 60px;
+        }
+        @media (max-width: 768px) { .sidebar { display: none; } } /* Hide sidebar on small iPads */
+
+        .content { width: 100%; padding: 20px; }
+
+        .upload-section { margin-bottom: 20px; }
+        .btn-upload {
+            background: #ffcc00; color: #000; padding: 12px 20px; 
+            border-radius: 25px; cursor: pointer; font-weight: bold; display: inline-block;
+        }
+
+        .video-grid { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+            gap: 20px; width: 100%; 
+        }
+
+        .video-card { 
+            background: #fff; border-radius: 12px; overflow: hidden; 
+            cursor: pointer; transition: 0.2s; border: 1px solid #eee;
+        }
+        .video-card:active { transform: scale(0.95); } /* Feel for iPad touch */
+
+        .thumbnail { 
+            width: 100%; aspect-ratio: 16/9; background: #e0e0e0; 
+            display: flex; align-items: center; justify-content: center; font-size: 50px;
+        }
+
+        .video-info { padding: 12px; }
+        .video-title { font-weight: bold; margin: 0; font-size: 16px; }
+        .video-meta { font-size: 13px; color: #666; margin-top: 5px; }
+
+        /* --- VIDEO PLAYER MODAL --- */
+        #videoModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; 
+            align-items: center; justify-content: center;
+        }
+        #mainPlayer { width: 90%; max-width: 900px; border-radius: 8px; outline: none; }
+        .close-btn { 
+            position: absolute; top: 20px; right: 20px; font-size: 30px; 
+            color: white; cursor: pointer; background: none; border: none; 
+        }
+
+        /* Animation */
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .quack-bounce { animation: bounce 0.3s ease-in-out; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="#" class="logo">🦆 Quack</a>
+    <input type="text" class="search-bar" id="searchInput" placeholder="Search Quack...">
+    <div style="font-size: 20px;">👤</div>
+</header>
+
+<div class="main-container">
+    <nav class="sidebar">
+        <p><b>Menu</b></p>
+        <a href="#" style="text-decoration:none; color:black; display:block; margin: 10px 0;">🏠 Home</a>
+        <a href="#" style="text-decoration:none; color:black; display:block; margin: 10px 0;">🔥 Trending</a>
+    </nav>
+
+    <div class="content">
+        <div class="upload-section">
+            <label class="btn-upload">
+                ➕ Upload Video
+                <input type="file" id="videoUpload" accept="video/*" style="display:none;">
+            </label>
+        </div>
+        
+        <div class="video-grid" id="videoGrid">
+            </div>
+    </div>
+</div>
+
+<div id="videoModal">
+    <button class="close-btn" onclick="closeVideo()">✕</button>
+    <video id="mainPlayer" controls></video>
+    <h2 id="playerTitle" style="color:white; margin-top:15px;"></h2>
+</div>
+
+<script>
+    /* --- 2. LOGIC & BRAINS (JAVASCRIPT) --- */
+
+    // Initial Demo Videos
+    let quackVideos = [
+        { id: 1, title: "Welcome to Quack! (Demo)", author: "The Duck Team", views: "1M", url: "" },
+        { id: 2, title: "How to Bread", author: "Mallard88", views: "450k", url: "" }
+    ];
+
+    const videoGrid = document.getElementById('videoGrid');
+    const searchInput = document.getElementById('searchInput');
+    const videoUpload = document.getElementById('videoUpload');
+    const quackSound = new Audio('https://www.soundjay.com/nature/sounds/duck-quack-1.mp3');
+
+    // Function to draw videos on screen
+    function displayVideos(videos) {
+        videoGrid.innerHTML = '';
+        videos.forEach(video => {
+            const card = document.createElement('div');
+            card.className = 'video-card';
+            card.innerHTML = `
+                <div class="thumbnail">🦆</div>
+                <div class="video-info">
+                    <p class="video-title">${video.title}</p>
+                    <p class="video-meta">${video.author} • ${video.views} views</p>
+                </div>
+            `;
+            
+            card.onclick = () => {
+                // Play Quack Sound
+                quackSound.currentTime = 0;
+                quackSound.play().catch(() => console.log("Tap anywhere first to enable audio!"));
+                
+                // Animate Thumbnail
+                const thumb = card.querySelector('.thumbnail');
+                thumb.classList.add('quack-bounce');
+                setTimeout(() => thumb.classList.remove('quack-bounce'), 300);
+
+                // Play Video if it exists
+                if (video.url) {
+                    openVideo(video.title, video.url);
+                } else {
+                    alert("This is a demo card! Use the 'Upload' button to play a real video from your iPad.");
+                }
+            };
+            videoGrid.appendChild(card);
+        });
+    }
+
+    // Handle Upload from iPad
+    videoUpload.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const videoUrl = URL.createObjectURL(file);
+            const newVideo = {
+                id: Date.now(),
+                title: file.name.replace(/\.[^/.]+$/, ""), // Remove file extension from title
+                author: "Me",
+                views: "0",
+                url: videoUrl
+            };
+            quackVideos.unshift(newVideo);
+            displayVideos(quackVideos);
+        }
+    });
+
+    // Video Player Control
+    function openVideo(title, url) {
+        document.getElementById('playerTitle').innerText = title;
+        const player = document.getElementById('mainPlayer');
+        player.src = url;
+        document.getElementById('videoModal').style.display = 'flex';
+        player.play();
+    }
+
+    function closeVideo() {
+        const modal = document.getElementById('videoModal');
+        const player = document.getElementById('mainPlayer');
+        modal.style.display = 'none';
+        player.pause();
+        player.src = "";
+    }
+
+    // Search Filter
+    searchInput.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const filtered = quackVideos.filter(v => v.title.toLowerCase().includes(term));
+        displayVideos(filtered);
+    });
+
+    // Start the app
+    displayVideos(quackVideos);
+
+</script>
+
+</body>
+</html>
